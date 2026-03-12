@@ -1,68 +1,116 @@
 services:
-  # --- DATABASES ---
+
+  # ── PostgreSQL DBs ────────────────────────────────────────────────
   auth-db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: adminpass
       POSTGRES_DB: authdb
-    ports:
-      - "5433:5432"
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
     volumes:
+      - auth_db_data:/var/lib/postgresql/data
       - ./auth-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d authdb"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+    networks: [taskboard-net]
 
   task-db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: adminpass
       POSTGRES_DB: taskdb
-    ports:
-      - "5434:5432"
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
     volumes:
+      - task_db_data:/var/lib/postgresql/data
       - ./task-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d taskdb"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+    networks: [taskboard-net]
 
   user-db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: adminpass
       POSTGRES_DB: userdb
-    ports:
-      - "5435:5432"
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
     volumes:
+      - user_db_data:/var/lib/postgresql/data
       - ./user-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d userdb"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+    networks: [taskboard-net]
 
-  # --- SERVICES ---
+  # ── Auth Service ────────────────────────────────────────────────────
   auth-service:
     build: ./auth-service
-    ports:
-      - "3001:3001"
     environment:
-      DATABASE_URL: postgres://admin:adminpass@auth-db:5432/authdb
-      JWT_SECRET: your-shared-secret-key
-      PORT: 3001
+      DATABASE_URL: postgresql://admin:secret@auth-db:5432/authdb
+      JWT_SECRET:   ${JWT_SECRET}
+      JWT_EXPIRES:  ${JWT_EXPIRES}
+      PORT:         3001
     depends_on:
-      - auth-db
+      auth-db: { condition: service_healthy }
+    networks: [taskboard-net]
+    restart: unless-stopped
 
+  # ── Task Service ─────────────────────────────────────────────────────
   task-service:
     build: ./task-service
-    ports:
-      - "3002:3002"
     environment:
-      DATABASE_URL: postgres://admin:adminpass@task-db:5432/taskdb
-      JWT_SECRET: your-shared-secret-key
-      PORT: 3002
+      DATABASE_URL: postgresql://admin:secret@task-db:5432/taskdb
+      JWT_SECRET:   ${JWT_SECRET}
+      PORT:         3002
     depends_on:
-      - task-db
+      task-db: { condition: service_healthy }
+      auth-service: { condition: service_started }
+    networks: [taskboard-net]
+    restart: unless-stopped
 
+  # ── User Service ─────────────────────────────────────────────────────
   user-service:
     build: ./user-service
-    ports:
-      - "3003:3003"
     environment:
-      DATABASE_URL: postgres://admin:adminpass@user-db:5432/userdb
-      JWT_SECRET: your-shared-secret-key
-      PORT: 3003
+      DATABASE_URL: postgresql://admin:secret@user-db:5432/userdb
+      JWT_SECRET:   ${JWT_SECRET}
+      PORT:         3003
     depends_on:
-      - user-db
+      user-db: { condition: service_healthy }
+    networks: [taskboard-net]
+    restart: unless-stopped
+
+  # ── Frontend (Static) ────────────────────────────────────────────────
+  frontend:
+    build: ./frontend
+    networks: [taskboard-net]
+
+  # ── Nginx (API Gateway + TLS) ────────────────────────────────────────
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - auth-service
+      - task-service
+      - user-service
+      - frontend
+    networks: [taskboard-net]
+    restart: unless-stopped
+
+volumes:
+  auth_db_data:
+  task_db_data:
+  user_db_data:
+
+networks:
+  taskboard-net:
+    driver: bridge

@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   title       VARCHAR(200) NOT NULL,
   description TEXT,
   status      VARCHAR(20) DEFAULT 'TODO',
+  priority    VARCHAR(20) DEFAULT 'medium',
   created_at  TIMESTAMP DEFAULT NOW(),
   updated_at  TIMESTAMP DEFAULT NOW()
 );

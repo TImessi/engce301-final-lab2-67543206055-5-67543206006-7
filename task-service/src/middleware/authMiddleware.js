@@ -1,4 +1,5 @@
 const { verifyToken } = require('./jwtUtils');
+const { pool } = require('../db/db');
 
 module.exports = function requireAuth(req, res, next) {
   const header = req.headers['authorization'] || '';
@@ -11,17 +12,11 @@ module.exports = function requireAuth(req, res, next) {
     req.user = verifyToken(token);  // { sub, email, role, username }
     next();
   } catch (err) {
-    // ส่ง log JWT error ไปยัง Log Service (fire-and-forget)
-    fetch('http://log-service:3003/api/logs/internal', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        service: 'task-service', level: 'ERROR', event: 'JWT_INVALID',
-        ip_address: req.headers['x-real-ip'] || req.ip,
-        message: 'Invalid JWT token: ' + err.message,
-        meta: { error: err.message }
-      })
-    }).catch(() => {});
+    // บันทึก log ลง DB ตัวเอง (fire-and-forget)
+    pool.query(
+      'INSERT INTO logs (level, event, message, meta) VALUES ($1, $2, $3, $4)',
+      ['ERROR', 'JWT_INVALID', 'Invalid JWT token: ' + err.message, { error: err.message }]
+    ).catch(() => {});
     return res.status(401).json({ error: 'Unauthorized: ' + err.message });
   }
 };

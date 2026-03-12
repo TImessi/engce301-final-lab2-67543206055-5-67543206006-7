@@ -1,9 +1,15 @@
 const { Pool } = require('pg');
+const fs   = require('fs');
+const path = require('path');
+
 const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  connectionString: process.env.DATABASE_URL || 'postgresql://task_user:task_secret@task-db:5432/task_db',
 });
-module.exports = { pool };
+
+async function initDB() {
+  const sql = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
+  await pool.query(sql);
+  console.log('[task-db] Tables initialized');
+}
+
+module.exports = { pool, initDB };

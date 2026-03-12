@@ -4,15 +4,20 @@ const requireAuth   = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Helper: ส่ง log
+// Helper: บันทึก log ลงฐานข้อมูลตัวเอง
 async function logEvent(data) {
   try {
-    await fetch('http://log-service:3003/api/logs/internal', {
-      method:  'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ service: 'task-service', ...data })
-    });
-  } catch (_) {}
+    await pool.query(
+      `INSERT INTO logs (level, event, user_id, message, meta) VALUES ($1, $2, $3, $4, $5)`,
+      [data.level, data.event, data.userId, data.message, data.meta]
+    );
+  } catch (err) {
+    console.error('[LOG ERROR]', err);
+  }
 }
+
+// GET /api/tasks/health
+router.get('/health', (_, res) => res.json({ status:'ok', service:'task-service' }));
 
 // ทุก route ต้องผ่าน JWT middleware
 router.use(requireAuth);
@@ -23,17 +28,23 @@ router.get('/', async (req, res) => {
     let result;
     if (req.user.role === 'admin') {
       result = await pool.query(`
-        SELECT t.*, u.username FROM tasks t
-        JOIN users u ON t.user_id = u.id
-        ORDER BY t.created_at DESC`);
+        SELECT * FROM tasks
+        ORDER BY created_at DESC`);
     } else {
       result = await pool.query(`
-        SELECT t.*, u.username FROM tasks t
-        JOIN users u ON t.user_id = u.id
-        WHERE t.user_id = $1 ORDER BY t.created_at DESC`, [req.user.sub]);
+        SELECT * FROM tasks
+        WHERE user_id = $1 ORDER BY created_at DESC`, [req.user.sub]);
     }
-    res.json({ tasks: result.rows, count: result.rowCount });
+    
+    // Add username manually for the current user
+    const tasks = result.rows.map(t => {
+      if (t.user_id === req.user.sub) return { ...t, username: req.user.username };
+      return t;
+    });
+
+    res.json({ tasks, count: result.rowCount });
   } catch (err) {
+    console.error('[TASK GET ER]', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -99,7 +110,5 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// GET /api/tasks/health
-router.get('/health', (_, res) => res.json({ status:'ok', service:'task-service' }));
 
 module.exports = router;

@@ -1,14 +1,23 @@
 {
-  "name": "auth-service",
+  "name": "user-service",
   "version": "1.0.0",
-  "main": "src/index.js",
-  "scripts": { "start": "node src/index.js" },
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [],
+  "author": "Maythiwat Chomchuen <maythiwat.chom@gmail.com>",
+  "license": "UNLICENSED",
+  "type": "commonjs",
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.2",
-    "pg": "^8.11.3"
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "pg": "^8.20.0"
   }
 }

@@ -1,14 +1,21 @@
 const express = require('express');
-const app = express();
-// แก้บรรทัดนี้ให้ชี้ไปที่ไฟล์ user.js แทน auth.js
-const userRoutes = require('./routes/user'); 
+const cors = require('cors');
 
+const app = express();
+app.use(cors());
 app.use(express.json());
 
-// ปรับ Path ให้ตรงตามโจทย์ Set 2
-app.use('/api/users', userRoutes); 
+// Routes
+const usersRoutes = require('./routes/users');
+app.use('/api/users', usersRoutes);
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('[USER-SERVICE] Error:', err);
+  res.status(500).json({ error: 'Internal Server Error' });
+});
 
 const PORT = process.env.PORT || 3003;
 app.listen(PORT, () => {
-  console.log(`User Service running on port ${PORT}`);
+  console.log(`[USER-SERVICE] running on port ${PORT}`);
 });
