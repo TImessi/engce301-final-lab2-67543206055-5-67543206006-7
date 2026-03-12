@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Task Board (Set 1)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background: #f4f4f9; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .hidden { display: none; }
+        input, button { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .task-item { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .nav { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .btn-link { background: #28a745; width: auto; padding: 10px 20px; border-radius: 5px; color: white; text-decoration: none; display: inline-block;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="login-section">
+            <h2>🔒 Login to Task Board</h2>
+            <input type="email" id="email" placeholder="Email (e.g., alice@lab.local)" value="alice@lab.local">
+            <input type="password" id="password" placeholder="Password (e.g., alice123)" value="alice123">
+            <button onclick="login()">Login</button>
+            <p id="login-error" style="color: red;"></p>
+        </div>
+
+        <div id="task-section" class="hidden">
+            <div class="nav">
+                <h2>📋 My Tasks (<span id="user-name"></span>)</h2>
+                <div>
+                    <a href="logs.html" class="btn-link">📊 View Logs</a>
+                    <button onclick="logout()" style="background: #dc3545; width: auto; padding: 10px 20px;">Logout</button>
+                </div>
+            </div>
+
+            <div style="background: #e9ecef; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <h3>➕ Add New Task</h3>
+                <input type="text" id="new-task-title" placeholder="Task Title">
+                <button onclick="createTask()">Add Task</button>
+            </div>
+
+            <div id="tasks-container">Loading tasks...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = ''; // ใช้ Relative path เพราะรันผ่าน Nginx เดียวกัน
+        
+        // เช็คว่าเคย Login ไว้หรือยัง
+        if (localStorage.getItem('token')) {
+            showTaskBoard();
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                const res = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('username', data.user.username);
+                    showTaskBoard();
+                } else {
+                    document.getElementById('login-error').innerText = data.error || 'Login failed';
+                }
+            } catch (err) {
+                document.getElementById('login-error').innerText = 'Server error';
+            }
+        }
+
+        function showTaskBoard() {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('task-section').classList.remove('hidden');
+            document.getElementById('user-name').innerText = localStorage.getItem('username');
+            fetchTasks();
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('task-section').classList.add('hidden');
+            document.getElementById('email').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        async function fetchTasks() {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/api/tasks/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if(res.status === 401) return logout(); // ถ้า Token หมดอายุให้เตะออก
+            
+            const data = await res.json();
+            const container = document.getElementById('tasks-container');
+            container.innerHTML = '';
+            
+            if(data.tasks && data.tasks.length > 0) {
+                data.tasks.forEach(task => {
+                    container.innerHTML += `
+                        <div class="task-item">
+                            <strong>${task.title}</strong> - Status: <em>${task.status}</em> 
+                            <br><small>Created by: ${task.username}</small>
+                        </div>
+                    `;
+                });
+            } else {
+                container.innerHTML = '<p>No tasks found. Create one above!</p>';
+            }
+        }
+
+        async function createTask() {
+            const title = document.getElementById('new-task-title').value;
+            const token = localStorage.getItem('token');
+            if(!title) return alert('Please enter a title');
+
+            await fetch(`${API_URL}/api/tasks/`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ title })
+            });
+            
+            document.getElementById('new-task-title').value = '';
+            fetchTasks();
+        }
+    </script>
+</body>
+</html>

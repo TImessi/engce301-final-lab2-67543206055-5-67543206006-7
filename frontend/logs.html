@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System Logs</title>
+    <style>
+        body { font-family: monospace; background: #1e1e1e; color: #00ff00; padding: 20px; }
+        .log-entry { border-bottom: 1px solid #333; padding: 8px 0; }
+        .INFO { color: #00ff00; }
+        .WARN { color: #ffc107; }
+        .ERROR { color: #dc3545; }
+        a { color: #007bff; text-decoration: none; font-size: 18px; margin-bottom: 20px; display: inline-block;}
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <a href="index.html">⬅️ Back to Task Board</a>
+    <h2>📡 Centralized Logs Dashboard</h2>
+    <button onclick="fetchLogs()" style="margin-bottom: 20px; padding: 5px 10px; cursor: pointer;">🔄 Refresh Logs</button>
+    <div id="logs-container">Loading logs...</div>
+
+    <script>
+        const API_URL = '';
+
+        async function fetchLogs() {
+            const token = localStorage.getItem('token');
+            if(!token) {
+                document.getElementById('logs-container').innerHTML = '<span class="ERROR">Unauthorized: Please login first.</span>';
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/api/logs/`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (res.status === 401) {
+                    document.getElementById('logs-container').innerHTML = '<span class="ERROR">Session expired. Please login again.</span>';
+                    return;
+                }
+
+                const data = await res.json();
+                const container = document.getElementById('logs-container');
+                container.innerHTML = '';
+
+                if(data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        const date = new Date(log.created_at).toLocaleString();
+                        container.innerHTML += `
+                            <div class="log-entry">
+                                [${date}] <strong>[${log.service}]</strong> 
+                                <span class="${log.level}">[${log.level}]</span> 
+                                ${log.event} - ${log.message || ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = 'No logs available.';
+                }
+            } catch(e) {
+                document.getElementById('logs-container').innerHTML = '<span class="ERROR">Failed to fetch logs.</span>';
+            }
+        }
+
+        // โหลดข้อมูลทันทีที่เปิดหน้าเว็บ
+        fetchLogs();
+    </script>
+</body>
+</html>
