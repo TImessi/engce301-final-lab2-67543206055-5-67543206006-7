@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db/db'); // ตรวจสอบว่าไฟล์ db.js เชื่อมต่อกับ user-db
-const { authenticateToken } = require('../middleware/authMiddleware'); // ใช้ Middleware จาก Set 1
+const { authenticateToken } = require('../middleware/jwtUtils');
 
 // GET /api/users/profile - ดู profile ตัวเอง
 router.get('/profile', authenticateToken, async (req, res) => {

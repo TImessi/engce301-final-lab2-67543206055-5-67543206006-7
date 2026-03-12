@@ -1,16 +1,14 @@
-require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const authRoutes = require('./routes/auth');
-
 const app = express();
-const PORT = process.env.PORT || 3001;
+// แก้บรรทัดนี้ให้ชี้ไปที่ไฟล์ user.js แทน auth.js
+const userRoutes = require('./routes/user'); 
 
-app.use(cors());
 app.use(express.json());
 
-app.use('/api/auth', authRoutes);
+// ปรับ Path ให้ตรงตามโจทย์ Set 2
+app.use('/api/users', userRoutes); 
 
-app.get('/api/auth/health', (_, res) => res.json({ status:'ok', service:'auth-service' }));
-
-app.listen(PORT, () => console.log(`[auth-service] Running on port ${PORT}`));
+const PORT = process.env.PORT || 3003;
+app.listen(PORT, () => {
+  console.log(`User Service running on port ${PORT}`);
+});
